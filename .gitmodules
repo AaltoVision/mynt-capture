@@ -1,0 +1,9 @@
+[submodule "opencv"]
+	path = opencv
+	url = https://github.com/opencv/opencv.git
+[submodule "MYNT-EYE-S-SDK"]
+	path = MYNT-EYE-S-SDK
+	url = https://github.com/slightech/MYNT-EYE-S-SDK.git
+[submodule "jsonl-recorder"]
+	path = jsonl-recorder
+	url = git@github.com:AaltoVision/jsonl-recorder.git
