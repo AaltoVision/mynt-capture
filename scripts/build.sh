@@ -16,7 +16,11 @@ make -j4
 # Install into a custom directory without using `sudo`.
 # `make samples` does not seem to work with a custom install directory, so
 # you need to remove `SUDO=` and `-DCMAKE_INSTALL_PREFIX` to build the examples.
+EXTRA=
+if [ $(uname -s) == "Darwin" ]; then
+  EXTRA="-DCMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES=/usr/local/include"
+fi
 cd "$ROOT_DIR/MYNT-EYE-S-SDK"
 OpenCV_DIR="$ROOT_DIR/build/opencv" make install \
   SUDO= \
-  CMAKE_BUILD_EXTRA_OPTIONS="-DCMAKE_INSTALL_PREFIX=install"
+  CMAKE_BUILD_EXTRA_OPTIONS="-DCMAKE_INSTALL_PREFIX=install $EXTRA"
