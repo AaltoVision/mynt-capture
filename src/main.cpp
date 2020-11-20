@@ -44,17 +44,22 @@ std::shared_ptr<mynteye::API> setupMynt(int argc, char *argv[]) {
   // LOG(INFO) << "Motion extrinsics left to imu: {" << api->GetMotionExtrinsics(mynteye::Stream::LEFT) << "}";
 
   // NOTE The hardware stores the previous settings, so not setting the options
-  // may NOT give the defaults.
+  // may NOT give the defaults. There's an option named ERASE_CHIP that might change this
+  // but it's not documented.
 
   // FRAME_RATE values: 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60
   api->SetOptionValue(mynteye::Option::FRAME_RATE, 30);
   // IMU_FREQUENCY values: 100, 200, 250, 333, 500
   api->SetOptionValue(mynteye::Option::IMU_FREQUENCY, 500);
 
+  // TODO Test if apparent gyroscope filtering on S1030 can be mitigated by lowering the range.
   // ACCELEROMETER_RANGE values: 4, 8, 16, 32
   api->SetOptionValue(mynteye::Option::ACCELEROMETER_RANGE, 8);
   // GYROSCOPE_RANGE values: 500, 1000, 2000, 4000
   api->SetOptionValue(mynteye::Option::GYROSCOPE_RANGE, 1000);
+
+  // Not supported on S1030.
+  // api->SetOptionValue(mynteye::Option::GYROSCOPE_LOW_PASS_FILTER, 23);
 
   // 0 = auto-exposure, 1 = manual
   api->SetOptionValue(mynteye::Option::EXPOSURE_MODE, 0);
@@ -92,6 +97,7 @@ std::shared_ptr<mynteye::API> setupMynt(int argc, char *argv[]) {
   LOG(INFO) << "IMU_FREQUENCY [100,500]Hz: " << api->GetOptionValue(mynteye::Option::IMU_FREQUENCY);
   LOG(INFO) << "ACCELEROMETER_RANGE [4, 32]g: " << api->GetOptionValue(mynteye::Option::ACCELEROMETER_RANGE);
   LOG(INFO) << "GYROSCOPE_RANGE [500, 4000]deg/s: " << api->GetOptionValue(mynteye::Option::GYROSCOPE_RANGE);
+  // LOG(INFO) << "GYROSCOPE_LOW_PASS_FILTER: " << api->GetOptionValue(mynteye::Option::GYROSCOPE_LOW_PASS_FILTER);
   if (api->GetOptionValue(mynteye::Option::EXPOSURE_MODE) == 0) {
     LOG(INFO) << "auto-exposure enabled:";
     LOG(INFO) << "  MAX_GAIN [0,48]: " << api->GetOptionValue(mynteye::Option::MAX_GAIN);
@@ -134,6 +140,7 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<recorder::Recorder> recorder = recorder::Recorder::build(
      outputDir + "/data.jsonl",
      outputDir + "/data.avi");
+  recorder->setVideoRecordingFps(api->GetOptionValue(mynteye::Option::FRAME_RATE));
 
   api->Start(mynteye::Source::ALL);
 
@@ -196,9 +203,8 @@ int main(int argc, char *argv[]) {
         recorder::FrameData frameData({
             .t = 1e-6 * s.img->timestamp,
             .cameraInd = index,
-            .focalLength = 0.5 * (intrinsics[index].coeffs[4] + intrinsics[index].coeffs[5]),
-            // .focalLengthX = intrinsics[index].coeffs[4],
-            // .focalLengthY = intrinsics[index].coeffs[5],
+            .focalLengthX = intrinsics[index].coeffs[4],
+            .focalLengthY = intrinsics[index].coeffs[5],
             .px = intrinsics[index].coeffs[6],
             .py = intrinsics[index].coeffs[7],
             .frameData = colorFrames + index,
@@ -222,19 +228,25 @@ int main(int argc, char *argv[]) {
       }
       double t = 1e-6 * data.imu->timestamp;
       constexpr double DEG_TO_RADIAN = 2 * M_PI / 360.;
-      recorder->addGyroscope(t,
-          DEG_TO_RADIAN * data.imu->gyro[0],
-          DEG_TO_RADIAN * data.imu->gyro[1],
-          DEG_TO_RADIAN * data.imu->gyro[2]);
+      double temperature = 273.15 + data.imu->temperature;
+      recorder->addGyroscope(recorder::GyroscopeData {
+          .t = t,
+          .x = DEG_TO_RADIAN * data.imu->gyro[0],
+          .y = DEG_TO_RADIAN * data.imu->gyro[1],
+          .z = DEG_TO_RADIAN * data.imu->gyro[2],
+          .temperature = temperature,
+      });
       // NOTE Not sure if this is correct, should check if Mynt documents the
       // `g` value somewhere. Apple for example uses exactly 9.81.
       // <https://en.wikipedia.org/wiki/Standard_gravity>
       constexpr double G = 9.80665;
-      recorder->addAccelerometer(t,
-          G * data.imu->accel[0],
-          G * data.imu->accel[1],
-          G * data.imu->accel[2]);
-      // Also record `data.imu->temperature`?
+      recorder->addAccelerometer(recorder::AccelerometerData {
+          .t = t,
+          .x = G * data.imu->accel[0],
+          .y = G * data.imu->accel[1],
+          .z = G * data.imu->accel[2],
+          .temperature = temperature,
+      });
     }
 
     // Quit with Escape, Enter or Q.
@@ -251,7 +263,7 @@ int main(int argc, char *argv[]) {
 
   std::cout << std::endl;
   LOG(INFO) << "Camera FPS: " << (1000. * imgCount / elapsed);
-  LOG(INFO) << "Imu frequency: " << (1000. * imuCount / elapsed) << " Hz";
+  LOG(INFO) << "IMU frequency: " << (1000. * imuCount / elapsed) << " Hz";
   std::cout << std::endl;
 
   return 0;
