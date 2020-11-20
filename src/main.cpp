@@ -59,7 +59,7 @@ std::shared_ptr<mynteye::API> setupMynt(int argc, char *argv[]) {
   api->SetOptionValue(mynteye::Option::GYROSCOPE_RANGE, 1000);
 
   // Not supported on S1030.
-  // api->SetOptionValue(mynteye::Option::GYROSCOPE_LOW_PASS_FILTER, 23);
+  // api->SetOptionValue(mynteye::Option::GYROSCOPE_LOW_PASS_FILTER, 64);
 
   // 0 = auto-exposure, 1 = manual
   api->SetOptionValue(mynteye::Option::EXPOSURE_MODE, 0);
@@ -97,7 +97,6 @@ std::shared_ptr<mynteye::API> setupMynt(int argc, char *argv[]) {
   LOG(INFO) << "IMU_FREQUENCY [100,500]Hz: " << api->GetOptionValue(mynteye::Option::IMU_FREQUENCY);
   LOG(INFO) << "ACCELEROMETER_RANGE [4, 32]g: " << api->GetOptionValue(mynteye::Option::ACCELEROMETER_RANGE);
   LOG(INFO) << "GYROSCOPE_RANGE [500, 4000]deg/s: " << api->GetOptionValue(mynteye::Option::GYROSCOPE_RANGE);
-  // LOG(INFO) << "GYROSCOPE_LOW_PASS_FILTER: " << api->GetOptionValue(mynteye::Option::GYROSCOPE_LOW_PASS_FILTER);
   if (api->GetOptionValue(mynteye::Option::EXPOSURE_MODE) == 0) {
     LOG(INFO) << "auto-exposure enabled:";
     LOG(INFO) << "  MAX_GAIN [0,48]: " << api->GetOptionValue(mynteye::Option::MAX_GAIN);
@@ -122,11 +121,6 @@ std::shared_ptr<mynteye::API> setupMynt(int argc, char *argv[]) {
   // api->EnableTimestampCorrespondence(mynteye::Stream::LEFT);
 
   api->EnableMotionDatas();
-
-  // api->DisableStreamData(mynteye::Stream::LEFT);
-  // api->DisableStreamData(mynteye::Stream::RIGHT);
-  // api->EnableStreamData(mynteye::Stream::LEFT_RECTIFIED);
-  // api->EnableStreamData(mynteye::Stream::RIGHT_RECTIFIED);
 
   return api;
 }
@@ -184,8 +178,6 @@ int main(int argc, char *argv[]) {
 
     auto &&left = api->GetStreamData(mynteye::Stream::LEFT);
     auto &&right = api->GetStreamData(mynteye::Stream::RIGHT);
-    // auto &&left = api->GetStreamData(mynteye::Stream::LEFT_RECTIFIED);
-    // auto &&right = api->GetStreamData(mynteye::Stream::RIGHT_RECTIFIED);
 
     assert(left.frame_raw->format() == mynteye::Format::GREY);
     assert(right.frame_raw->format() == mynteye::Format::GREY);
